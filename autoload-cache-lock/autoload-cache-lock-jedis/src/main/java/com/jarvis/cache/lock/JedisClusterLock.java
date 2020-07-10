@@ -3,7 +3,7 @@ package com.jarvis.cache.lock;
 import redis.clients.jedis.JedisCluster;
 
 /**
- *
+ * 分布式锁，基于Redis集群模式
  */
 public class JedisClusterLock extends AbstractRedisLock {
 

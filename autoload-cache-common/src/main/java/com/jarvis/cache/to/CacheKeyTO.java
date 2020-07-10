@@ -18,7 +18,7 @@ public final class CacheKeyTO implements Serializable {
 
     private final String key;// 缓存Key
 
-    private final String hfield;// 设置哈希表中的字段，如果设置此项，则用哈希表进行存储
+    private final String hfield;// 设置哈希表中的字段，如果设置此项，则用哈希表进行存储(比如redis中的hset)
 
     public CacheKeyTO(String namespace, String key, String hfield) {
         this.namespace = namespace;

@@ -4,16 +4,18 @@ import com.jarvis.cache.CacheHandler;
 import com.jarvis.cache.annotation.Cache;
 import com.jarvis.cache.annotation.CacheDelete;
 import com.jarvis.cache.annotation.CacheDeleteTransactional;
+import java.lang.reflect.Method;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.Signature;
 import org.aspectj.lang.reflect.MethodSignature;
 
-import java.lang.reflect.Method;
-
 /**
  * 使用Aspectj 实现AOP拦截 注意：拦截器不能有相同名字的Method
  *
+ * 入口方法  这个可以参考 https://github.com/qiujiayu/cache-example/blob/master/src/main/resources/applicationContext.xml 的配置
+ *
+ * 下面的类被用于处理aop切面
  */
 public class AspectjAopInterceptor {
 
@@ -23,6 +25,15 @@ public class AspectjAopInterceptor {
         this.cacheHandler = cacheHandler;
     }
 
+    //-------------------------- 拦截mybatis的mapper
+
+    /**
+     * 拦截cache
+     *
+     * @param pjp
+     * @return
+     * @throws Throwable
+     */
     public Object checkAndProceed(ProceedingJoinPoint pjp) throws Throwable {
         Signature signature = pjp.getSignature();
         MethodSignature methodSignature = (MethodSignature) signature;
@@ -39,6 +50,14 @@ public class AspectjAopInterceptor {
         }
     }
 
+    /**
+     *
+     * 删除cache
+     *
+     * @param jp
+     * @param retVal
+     * @throws Throwable
+     */
     public void checkAndDeleteCache(JoinPoint jp, Object retVal) throws Throwable {
         Signature signature = jp.getSignature();
         MethodSignature methodSignature = (MethodSignature) signature;
@@ -64,10 +83,24 @@ public class AspectjAopInterceptor {
         }
     }
 
+    //------------------------------------- @cache 连接方法
+
+    /**
+     * 拦截cache  拦截方式  around
+     */
     public Object proceed(ProceedingJoinPoint aopProxyChain, Cache cache) throws Throwable {
         return cacheHandler.proceed(new AspectjCacheAopProxyChain(aopProxyChain), cache);
     }
 
+    /**
+     *
+     * 拦截删除cache    连接方式：after-retuning
+     *
+     * @param aopProxyChain
+     * @param cacheDelete
+     * @param retVal
+     * @throws Throwable
+     */
     public void deleteCache(JoinPoint aopProxyChain, CacheDelete cacheDelete, Object retVal) throws Throwable {
         cacheHandler.deleteCache(new AspectjDeleteCacheAopProxyChain(aopProxyChain), cacheDelete, retVal);
     }

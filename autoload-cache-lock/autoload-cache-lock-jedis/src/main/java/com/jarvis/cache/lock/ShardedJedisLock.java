@@ -5,7 +5,7 @@ import redis.clients.jedis.ShardedJedis;
 import redis.clients.jedis.ShardedJedisPool;
 
 /**
- *
+ * Redis 分布式锁,  ShardedJedis 使用了一致性hash
  */
 public class ShardedJedisLock extends AbstractRedisLock {
 

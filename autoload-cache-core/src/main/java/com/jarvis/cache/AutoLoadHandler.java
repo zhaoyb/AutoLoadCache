@@ -141,15 +141,18 @@ public class AutoLoadHandler {
 
     public AutoLoadTO putIfAbsent(CacheKeyTO cacheKey, CacheAopProxyChain joinPoint, Cache cache,
                                   CacheWrapper<Object> cacheWrapper) {
+        //自动加载队列为null
         if (null == autoLoadMap) {
             return null;
         }
 
+        //已经存在于自动加载队列
         AutoLoadTO autoLoadTO = autoLoadMap.get(cacheKey);
         if (null != autoLoadTO) {
             return autoLoadTO;
         }
         try {
+            // 判断是否需要自动加载
             if (!cacheHandler.getScriptParser().isAutoload(cache, joinPoint.getTarget(), joinPoint.getArgs(),
                     cacheWrapper.getCacheObject())) {
                 return null;
@@ -158,6 +161,7 @@ public class AutoLoadHandler {
             log.error(e.getMessage(), e);
             return null;
         }
+        // 过期时间
         int expire = cacheWrapper.getExpire();
         if (expire >= AUTO_LOAD_MIN_EXPIRE && autoLoadMap.size() <= this.config.getMaxElement()) {
             Object[] arguments;

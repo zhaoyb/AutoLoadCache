@@ -98,12 +98,15 @@ public class CacheHandler {
      */
     private Object writeOnly(CacheAopProxyChain pjp, Cache cache) throws Throwable {
         DataLoader dataLoader;
+        // 池化
         if (config.isDataLoaderPooled()) {
             DataLoaderFactory factory = DataLoaderFactory.getInstance();
             dataLoader = factory.getDataLoader();
         } else {
             dataLoader = new DataLoader();
         }
+
+        //缓存结果包装
         CacheWrapper<Object> cacheWrapper;
         try {
             cacheWrapper = dataLoader.init(pjp, cache, this).getData().getCacheWrapper();
@@ -115,13 +118,18 @@ public class CacheHandler {
                 factory.returnObject(dataLoader);
             }
         }
+        // 缓存结果
         Object result = cacheWrapper.getCacheObject();
+        // 方法参数
         Object[] arguments = pjp.getArgs();
+        // 通过表达式，判断是否可以缓存
         if (scriptParser.isCacheable(cache, pjp.getTarget(), arguments, result)) {
+            // 缓存key
             CacheKeyTO cacheKey = getCacheKey(pjp, cache, result);
             // 注意：这里只能获取AutoloadTO，不能生成AutoloadTO
             AutoLoadTO autoLoadTO = autoLoadHandler.getAutoLoadTO(cacheKey);
             try {
+                // 保存结果
                 writeCache(pjp, pjp.getArgs(), cache, cacheKey, cacheWrapper);
                 if (null != autoLoadTO) {
                     // 同步加载时间
@@ -148,11 +156,15 @@ public class CacheHandler {
      * @return CacheOpType
      */
     private CacheOpType getCacheOpType(Cache cache, Object[] arguments) {
+        // 从注解中获取缓存操作类型
         CacheOpType opType = cache.opType();
+        // 从ThreadLocal中获取
         CacheOpType tmpOpType = CacheHelper.getCacheOpType();
+
         if (null != tmpOpType) {
             opType = tmpOpType;
         }
+        //从参数中获取
         if (null != arguments && arguments.length > 0) {
             for (Object tmp : arguments) {
                 if (null != tmp && tmp instanceof CacheOpType) {
@@ -161,6 +173,7 @@ public class CacheHandler {
                 }
             }
         }
+        // 默认
         if (null == opType) {
             opType = CacheOpType.READ_WRITE;
         }
@@ -176,23 +189,28 @@ public class CacheHandler {
      * @throws Exception 异常
      */
     public Object proceed(CacheAopProxyChain pjp, Cache cache) throws Throwable {
+        // 方法参数
         Object[] arguments = pjp.getArgs();
+        // 获取缓存类型
         CacheOpType opType = getCacheOpType(cache, arguments);
         if (log.isTraceEnabled()) {
             log.trace("CacheHandler.proceed-->{}.{}--{})", pjp.getTarget().getClass().getName(), pjp.getMethod().getName(), opType.name());
         }
         if (opType == CacheOpType.WRITE) {
+            // 从数据源加载数据，写入缓存
             return writeOnly(pjp, cache);
         } else if (opType == CacheOpType.LOAD || !scriptParser.isCacheable(cache, pjp.getTarget(), arguments)) {
+            // 从数据源加载数据
             return getData(pjp);
         }
         Method method = pjp.getMethod();
         if (MagicHandler.isMagic(cache, method)) {
             return new MagicHandler(this, pjp, cache).magic();
         }
-
+        // 缓存key
         CacheKeyTO cacheKey = getCacheKey(pjp, cache);
         if (null == cacheKey) {
+            //从数据源加载数据
             return getData(pjp);
         }
         CacheWrapper<Object> cacheWrapper = null;
@@ -205,20 +223,24 @@ public class CacheHandler {
         if (log.isTraceEnabled()) {
             log.trace("cache key:{}, cache data is {} ", cacheKey.getCacheKey(), cacheWrapper);
         }
+        //只从缓存中读取，用于其它地方往缓存写
         if (opType == CacheOpType.READ_ONLY) {
             return null == cacheWrapper ? null : cacheWrapper.getCacheObject();
         }
 
+        // 缓存命中
         if (null != cacheWrapper && !cacheWrapper.isExpired()) {
             AutoLoadTO autoLoadTO = autoLoadHandler.putIfAbsent(cacheKey, pjp, cache, cacheWrapper);
             if (null != autoLoadTO) {
+                // 已经被放入到自动加载队列了， 刷新最后加载时间
                 autoLoadTO.flushRequestTime(cacheWrapper);
             } else {
-                // 如果缓存快要失效，则自动刷新
+                // 不需要自动加载   如果缓存快要失效，则自动刷新
                 refreshHandler.doRefresh(pjp, cache, cacheKey, cacheWrapper);
             }
             return cacheWrapper.getCacheObject();
         }
+        // 缓存未命中  加载数据
         DataLoader dataLoader;
         if (config.isDataLoaderPooled()) {
             DataLoaderFactory factory = DataLoaderFactory.getInstance();
@@ -230,6 +252,7 @@ public class CacheHandler {
         long loadDataUseTime = 0L;
         boolean isFirst;
         try {
+            // 加载数据
             newCacheWrapper = dataLoader.init(pjp, cacheKey, cache, this).loadData().getCacheWrapper();
             loadDataUseTime = dataLoader.getLoadDataUseTime();
         } catch (Throwable e) {
@@ -243,8 +266,10 @@ public class CacheHandler {
             }
         }
         if (isFirst) {
+            // 放入到自动加载队列
             AutoLoadTO autoLoadTO = autoLoadHandler.putIfAbsent(cacheKey, pjp, cache, newCacheWrapper);
             try {
+                // 写缓存
                 writeCache(pjp, pjp.getArgs(), cache, cacheKey, newCacheWrapper);
                 if (null != autoLoadTO) {
                     autoLoadTO.flushRequestTime(newCacheWrapper);
@@ -414,6 +439,17 @@ public class CacheHandler {
         }
     }
 
+    /**
+     *
+     * 写缓存
+     *
+     * @param pjp
+     * @param arguments
+     * @param cache
+     * @param cacheKey
+     * @param cacheWrapper
+     * @throws Exception
+     */
     public void writeCache(CacheAopProxyChain pjp, Object[] arguments, Cache cache, CacheKeyTO cacheKey,
                            CacheWrapper<Object> cacheWrapper) throws Exception {
         if (null == cacheKey) {

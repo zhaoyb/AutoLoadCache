@@ -41,14 +41,17 @@ public abstract class AbstractRedisCacheManager implements ICacheManager {
         if (null == cacheKeyTO) {
             return;
         }
+        // key
         String cacheKey = cacheKeyTO.getCacheKey();
         if (null == cacheKey || cacheKey.isEmpty()) {
             return;
         }
         try (IRedis redis = getRedis()) {
             String hfield = cacheKeyTO.getHfield();
+
             byte[] key = KEY_SERIALIZER.serialize(cacheKey);
             byte[] val = serializer.serialize(result);
+
             if (null == hfield || hfield.isEmpty()) {
                 int expire = result.getExpire();
                 if (expire == NEVER_EXPIRE) {

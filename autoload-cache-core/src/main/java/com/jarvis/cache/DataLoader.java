@@ -97,6 +97,7 @@ public class DataLoader {
     }
 
     public DataLoader loadData() throws Throwable {
+        // 正在处理中
         ProcessingTO processing = cacheHandler.processing.get(cacheKey);
         if (null == processing) {
             ProcessingTO newProcessing = new ProcessingTO();
@@ -159,6 +160,7 @@ public class DataLoader {
                     int tryCnt = 20;
                     // 没有获得锁时，定时缓存尝试获取数据
                     for (int i = 0; i < tryCnt; i++) {
+                        // 从缓存服务器上获取缓存
                         cacheWrapper = cacheHandler.get(cacheKey, pjp.getMethod());
                         if (null != cacheWrapper) {
                             break;
@@ -251,9 +253,11 @@ public class DataLoader {
     public DataLoader getData() throws Throwable {
         try {
             if (null != autoLoadTO) {
+                // 设置正在加载
                 autoLoadTO.setLoading(true);
             }
             long loadDataStartTime = System.currentTimeMillis();
+            // 调用被代理的方法，返回结果
             Object result = pjp.doProxyChain(arguments);
             loadDataUseTime = System.currentTimeMillis() - loadDataStartTime;
             AutoLoadConfig config = cacheHandler.getAutoLoadConfig();
@@ -276,8 +280,10 @@ public class DataLoader {
     }
 
     private void buildCacheWrapper(Object result) {
+        // cache 过期时间
         int expire = cache.expire();
         try {
+            // 缓存表达式，除了标准的缓存时间，用户还可以自定义缓存时间表达式(比如 对于空值缓存的时间，比标准时间更短)
             expire = cacheHandler.getScriptParser().getRealExpire(cache.expire(), cache.expireExpression(), arguments,
                     result);
         } catch (Exception e) {

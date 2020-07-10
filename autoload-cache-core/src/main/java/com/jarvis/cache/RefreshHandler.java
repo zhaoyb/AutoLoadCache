@@ -68,6 +68,13 @@ public class RefreshHandler {
         refreshing.remove(cacheKey);
     }
 
+    /**
+     *  刷新缓存
+     * @param pjp
+     * @param cache
+     * @param cacheKey
+     * @param cacheWrapper
+     */
     public void doRefresh(CacheAopProxyChain pjp, Cache cache, CacheKeyTO cacheKey, CacheWrapper<Object> cacheWrapper) {
         int expire = cacheWrapper.getExpire();
         if (expire < REFRESH_MIN_EXPIRE) {// 如果过期时间太小了，就不允许自动加载，避免加载过于频繁，影响系统稳定性
@@ -97,6 +104,7 @@ public class RefreshHandler {
         tmpByte = 1;
         if (null == refreshing.putIfAbsent(cacheKey, tmpByte)) {
             try {
+                // 将刷新放在一个线程池中运行
                 refreshThreadPool.execute(new RefreshTask(pjp, cache, cacheKey, cacheWrapper));
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
